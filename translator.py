@@ -1,5 +1,7 @@
-from phply.phpparse import make_parser
 from phply import phplex, phpast
+from phply.phpparse import make_parser
+import re
+import os
 
 
 def raw_value_to_str(value):
@@ -7,10 +9,51 @@ def raw_value_to_str(value):
 
 
 def arrayOffset_to_str(offset):
-    return f"{offset.node.node.name}[{raw_value_to_str(offset.node.expr)}]"
+    return f"{offset.node.name}[{raw_value_to_str(offset.expr)}]"
 
 
-# Parse the PHP code using phply's lexer and parser
+def ternaryOp_to_str(node):
+    return f"{node_to_str(node.expr)} ? {node_to_str(node.iftrue)} : {node_to_str(node.iffalse)}"
+
+
+def binaryOp_to_str(node):
+    return f"{node_to_str(node.left)} . {node_to_str(node.right)}"
+
+
+def node_to_str(node):
+    if isinstance(node, str):
+        value = str(node).replace("'", "\\'")
+        return f"'{value}'"
+    if isinstance(node, int):
+        return str(node)
+    elif isinstance(node, phpast.Variable):
+        return node.name
+    elif isinstance(node, phpast.ArrayOffset):
+        return arrayOffset_to_str(node)
+    elif isinstance(node, phpast.BinaryOp):
+        return binaryOp_to_str(node)
+    elif isinstance(node, phpast.TernaryOp):
+        return f"({ternaryOp_to_str(node)})"
+    elif isinstance(node, phpast.Empty):
+        return f"empty({node_to_str(node.expr)})"
+
+    raise Exception(f"Unknown: {node}")
+
+
+def translate_file(content):
+    yield '<?php'
+    yield ''
+
+    yield from (
+        ''.join((
+                arrayOffset_to_str(line.node),
+                ' = ',
+                node_to_str(line.expr),
+                ';'))
+        for line in parser.parse(content, lexer=lexer)
+    )
+
+
 parser = make_parser()
 lexer = phplex.lexer.clone()
 
@@ -18,6 +61,4 @@ input_file = open('./languages/Errors.polish.php', 'rt')
 input_lines = input_file.read()
 input_file.close()
 
-# Traverse the AST to extract variable assignments and function calls
-for line in parser.parse(input_lines, lexer=lexer):
-    print(arrayOffset_to_str(line), '=', line.expr)
+print('\n'.join(translate_file(input_lines)))
