@@ -1,7 +1,13 @@
 from phply import phplex, phpast
 from phply.phpparse import make_parser
 import re
-import os
+
+
+def transform_message(value: str) -> str:
+    value = re.sub('[a-z]\w+', 'gimp', value)
+    value = re.sub('[A-Z]\w+', 'Gimp', value)
+
+    return value
 
 
 def raw_value_to_str(value):
@@ -22,7 +28,7 @@ def binaryOp_to_str(node):
 
 def node_to_str(node):
     if isinstance(node, str):
-        value = str(node).replace("'", "\\'")
+        value = transform_message(str(node)).replace("'", "\\'")
         return f"'{value}'"
     if isinstance(node, int):
         return str(node)
@@ -58,7 +64,7 @@ parser = make_parser()
 lexer = phplex.lexer.clone()
 
 input_file = open('./languages/Errors.polish.php', 'rt')
-input_lines = input_file.read()
+input = input_file.read()
 input_file.close()
 
-print('\n'.join(translate_file(input_lines)))
+print('\n'.join(translate_file(input)))
