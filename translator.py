@@ -1,11 +1,15 @@
 from phply import phplex, phpast
 from phply.phpparse import make_parser
 import re
+import os
 
 
 def transform_message(value: str) -> str:
-    value = re.sub('[a-z]\w+', 'gimp', value)
-    value = re.sub('[A-Z]\w+', 'Gimp', value)
+    lower_case_word_pattern = re.compile(r'[a-ząćęłńóśźż]\w+',re.UNICODE)
+    upper_case_word_pattern = re.compile(r'[A-ZĄĆĘŁŃÓŚŹŻ]\w+',re.UNICODE)
+
+    value = re.sub(lower_case_word_pattern, 'gimp', value)
+    value = re.sub(upper_case_word_pattern, 'Gimp', value)
 
     return value
 
@@ -15,7 +19,7 @@ def raw_value_to_str(value):
 
 
 def arrayOffset_to_str(offset):
-    return f"{offset.node.name}[{raw_value_to_str(offset.expr)}]"
+    return f"{raw_value_to_str(offset.node)}[{raw_value_to_str(offset.expr)}]"
 
 
 def ternaryOp_to_str(node):
@@ -30,8 +34,10 @@ def node_to_str(node):
     if isinstance(node, str):
         value = transform_message(str(node)).replace("'", "\\'")
         return f"'{value}'"
-    if isinstance(node, int):
+    elif isinstance(node, int):
         return str(node)
+    elif isinstance(node, phpast.Constant):
+        return node.name
     elif isinstance(node, phpast.Variable):
         return node.name
     elif isinstance(node, phpast.ArrayOffset):
@@ -42,29 +48,67 @@ def node_to_str(node):
         return f"({ternaryOp_to_str(node)})"
     elif isinstance(node, phpast.Empty):
         return f"empty({node_to_str(node.expr)})"
+    elif isinstance(node, phpast.IsSet):
+        value = ', '.join(node_to_str(n) for n in node.nodes)
+        return f"isset({value})"
+    elif isinstance(node, phpast.FunctionCall):
+        value = ', '.join(node_to_str(p.node) for p in node.params)
+        return f"{node.name}({value})"
+    elif isinstance(node, phpast.Array):
+        return ', '.join(
+                n.value if n.key == None else f'{n.key} => {node_to_str(n.value)}'
+                for n in node.nodes
+            )
 
     raise Exception(f"Unknown: {node}")
 
 
-def translate_file(content):
+def translate_line(line):
+    if isinstance(line, phpast.Assignment):
+        return ''.join((
+            arrayOffset_to_str(line.node) if isinstance(line.node, phpast.ArrayOffset) else line.node.name,
+            ' = ',
+            node_to_str(line.expr),
+            ';'))
+    elif isinstance(line, phpast.Global):
+        return 'global ' + ', '.join(n.name for n in line.nodes) + ';'
+    else:
+        raise Exception(f"Unknown: {line}")
+
+
+def translate_file(content, parser, lexer):
     yield '<?php'
     yield ''
 
     yield from (
-        ''.join((
-                arrayOffset_to_str(line.node),
-                ' = ',
-                node_to_str(line.expr),
-                ';'))
+        translate_line(line)
         for line in parser.parse(content, lexer=lexer)
+        if not isinstance(line, phpast.InlineHTML)
     )
 
 
-parser = make_parser()
-lexer = phplex.lexer.clone()
+def list_files(in_directory, out_directory):
+    if not os.path.exists(out_directory):
+        os.mkdir(out_directory)
 
-input_file = open('./languages/Errors.polish.php', 'rt')
-input = input_file.read()
-input_file.close()
+    for root, _, files in os.walk(in_directory):
+        for file in files:
+            if not file.endswith('polish.php'):
+                continue
 
-print('\n'.join(translate_file(input)))
+            file_path = os.path.join(root, file)
+
+            input_file = open(file_path, 'rt', encoding='utf-8')
+            input = input_file.read()
+            input_file.close()
+
+            parser = make_parser()
+            lexer = phplex.lexer.clone()
+            output = '\n'.join(translate_file(input, parser, lexer))
+
+            output_file = open(os.path.join(out_directory, file), 'wt')
+            output_file.write(output)
+            output_file.close()
+
+
+list_files('languages', 'output')
