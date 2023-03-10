@@ -91,6 +91,9 @@ def list_files(in_directory, out_directory):
     if not os.path.exists(out_directory):
         os.mkdir(out_directory)
 
+    if not os.path.exists(os.path.join(out_directory, 'backend')):
+        os.mkdir(os.path.join(out_directory, 'backend'))
+
     for root, _, files in os.walk(in_directory):
         for file in files:
             if not file.endswith('polish.php'):
@@ -98,7 +101,7 @@ def list_files(in_directory, out_directory):
 
             file_path = os.path.join(root, file)
 
-            input_file = open(file_path, 'rt', encoding='utf-8')
+            input_file = open(file_path, 'rt', encoding=('iso-8859-2' if 'backend' in root else 'utf-8'))
             input = input_file.read()
             input_file.close()
 
@@ -106,7 +109,7 @@ def list_files(in_directory, out_directory):
             lexer = phplex.lexer.clone()
             output = '\n'.join(translate_file(input, parser, lexer))
 
-            output_file = open(os.path.join(out_directory, file), 'wt')
+            output_file = open(os.path.join(root.replace(in_directory, out_directory), file), 'wt')
             output_file.write(output)
             output_file.close()
 
