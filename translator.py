@@ -87,12 +87,27 @@ def translate_file(content, parser, lexer):
     )
 
 
-def list_files(in_directory, out_directory):
-    if not os.path.exists(out_directory):
-        os.mkdir(out_directory)
+def remove_dictionary(directory):
+    for dirpath, dirnames, filenames in os.walk(directory):
+        for filename in filenames:
+            filepath = os.path.join(dirpath, filename)
+            os.remove(filepath)
 
-    if not os.path.exists(os.path.join(out_directory, 'backend')):
-        os.mkdir(os.path.join(out_directory, 'backend'))
+        for dirname in dirnames:
+            subdirectory = os.path.join(dirpath, dirname)
+            remove_dictionary(subdirectory)
+
+    os.rmdir(directory)
+
+
+def list_files(in_directory, out_directory):
+    for root, dirs, _ in os.walk(in_directory):
+        for dir in dirs:
+            source_dir = os.path.join(in_directory, dir)
+            dest_dir = source_dir.replace(in_directory, out_directory)
+            if not os.path.exists(dest_dir):
+                os.makedirs(dest_dir)
+
 
     for root, _, files in os.walk(in_directory):
         for file in files:
@@ -100,8 +115,9 @@ def list_files(in_directory, out_directory):
                 continue
 
             file_path = os.path.join(root, file)
+            encoding = 'iso-8859-2' if 'backend' in root else 'utf-8'
 
-            input_file = open(file_path, 'rt', encoding=('iso-8859-2' if 'backend' in root else 'utf-8'))
+            input_file = open(file_path, 'rt', encoding=encoding)
             input = input_file.read()
             input_file.close()
 
@@ -109,9 +125,10 @@ def list_files(in_directory, out_directory):
             lexer = phplex.lexer.clone()
             output = '\n'.join(translate_file(input, parser, lexer))
 
-            output_file = open(os.path.join(root.replace(in_directory, out_directory), file), 'wt')
+            output_file = open(os.path.join(root.replace(in_directory, out_directory), file), 'wt', encoding=encoding)
             output_file.write(output)
             output_file.close()
 
 
+remove_dictionary('output')
 list_files('languages', 'output')
