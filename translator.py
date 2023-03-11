@@ -19,7 +19,7 @@ def raw_value_to_str(value):
 
 
 def arrayOffset_to_str(offset):
-    return f"{raw_value_to_str(offset.node)}[{raw_value_to_str(offset.expr)}]"
+    return f"{node_to_str(offset.node)}[{raw_value_to_str(offset.expr)}]"
 
 
 def ternaryOp_to_str(node):
