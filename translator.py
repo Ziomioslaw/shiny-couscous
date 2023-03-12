@@ -5,8 +5,8 @@ import os
 
 
 def transform_message(value: str) -> str:
-    lower_case_word_pattern = re.compile(r'[a-ząćęłńóśźż]\w+',re.UNICODE)
-    upper_case_word_pattern = re.compile(r'[A-ZĄĆĘŁŃÓŚŹŻ]\w+',re.UNICODE)
+    lower_case_word_pattern = re.compile(r'(?<!<)\b[a-ząćęłńóśźż]\w+\b(?![^<]*>)',re.UNICODE)
+    upper_case_word_pattern = re.compile(r'(?<!<)\b[A-ZĄĆĘŁŃÓŚŹŻ]\w+\b(?![^<]*>)',re.UNICODE)
 
     value = re.sub(lower_case_word_pattern, 'gimp', value)
     value = re.sub(upper_case_word_pattern, 'Gimp', value)
@@ -55,10 +55,12 @@ def node_to_str(node):
         value = ', '.join(node_to_str(p.node) for p in node.params)
         return f"{node.name}({value})"
     elif isinstance(node, phpast.Array):
-        return ', '.join(
-                n.value if n.key == None else f'{n.key} => {node_to_str(n.value)}'
+        value = ', '.join(
+                node_to_str(n.value) if n.key == None else f'{n.key} => {node_to_str(n.value)}'
                 for n in node.nodes
             )
+
+        return f"array({value})"
 
     raise Exception(f"Unknown: {node}")
 
