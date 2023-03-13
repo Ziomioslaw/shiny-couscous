@@ -32,8 +32,8 @@ def binaryOp_to_str(node):
 
 def node_to_str(node):
     if isinstance(node, str):
-        value = transform_message(str(node)).replace("'", "\\'")
-        return f"'{value}'"
+        value = transform_message(str(node)).replace("\n", "\\n").replace("'", "\\'")
+        return f'"{value}"' if '\\' in value else f"'{value}'" 
     elif isinstance(node, int):
         return str(node)
     elif isinstance(node, phpast.Constant):
