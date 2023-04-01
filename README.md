@@ -19,3 +19,7 @@ Run the script:
 ```sh
 python translator.py
 ```
+
+## Know issues
+
+* can generate not correct syntax when it is using "
